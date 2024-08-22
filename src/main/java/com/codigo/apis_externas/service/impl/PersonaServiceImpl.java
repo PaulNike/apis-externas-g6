@@ -7,34 +7,44 @@ import com.codigo.apis_externas.aggregates.response.ReniecResponse;
 import com.codigo.apis_externas.client.ReniecClient;
 import com.codigo.apis_externas.entity.PersonaEntity;
 import com.codigo.apis_externas.repository.PersonaRepository;
+import com.codigo.apis_externas.retrofit.ReniecService;
+import com.codigo.apis_externas.retrofit.impl.ReniecClientImpl;
 import com.codigo.apis_externas.service.PersonaService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+import retrofit2.Call;
+import retrofit2.Response;
 
+import java.io.IOException;
 import java.sql.Timestamp;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
 @Service
+@RequiredArgsConstructor
 public class PersonaServiceImpl implements PersonaService {
 
     private final PersonaRepository personaRepository;
     private final ReniecClient reniecClient;
+    private final RestTemplate restTemplate;
+    ReniecService reniecServiceRetrofit = ReniecClientImpl.getClient().create(ReniecService.class);
 
     @Value("${token.api}")
     private String tokenapi;
 
-    public PersonaServiceImpl(PersonaRepository personaRepository, ReniecClient reniecClient) {
-        this.personaRepository = personaRepository;
-        this.reniecClient = reniecClient;
-    }
+
 
     @Override
     public BaseResponse crearPersona(PersonaRequest request) {
         try {
-            PersonaEntity persona = getEntity(request);
+            PersonaEntity persona = getEntityRestTemplate(request);
             if(Objects.nonNull(persona)){
-                return new BaseResponse(Constants.OK_DNI_CODE,Constants.OK_DNI_MESS, Optional.of(personaRepository.save(persona)));
+                return new BaseResponse(Constants.OK_DNI_CODE,Constants.OK_DNI_MESS,
+                        Optional.of(personaRepository.save(persona)));
             }
         }catch (Exception e){
             BaseResponse response = new BaseResponse(Constants.ERROR_DNI_CODE
@@ -47,7 +57,15 @@ public class PersonaServiceImpl implements PersonaService {
 
     @Override
     public BaseResponse listarPersonas() {
-        return null;
+        Optional<List<PersonaEntity>> personaEntityList = personaRepository.findByEstado(Constants.STATUS_ACTIVE);
+        if(Objects.nonNull(personaEntityList)){
+            return new BaseResponse(Constants.OK_DNI_CODE,Constants.OK_DNI_MESS,
+                    personaEntityList);
+        }else {
+            BaseResponse response = new BaseResponse(Constants.ERROR_CODE_LIST_EMPTY
+                    ,Constants.ERROR_MESS_LIST_EMPTY, Optional.empty());
+            return response;
+        }
     }
 
     @Override
@@ -62,7 +80,24 @@ public class PersonaServiceImpl implements PersonaService {
 
     @Override
     public BaseResponse eliminarPersona(String dni) {
-        return null;
+        BaseResponse response = new BaseResponse();
+        PersonaEntity personaRecuperada = personaRepository.findByNumDoc(dni).orElseThrow(
+                ()->new RuntimeException("ERROR NO EXISTE LA PERSONA QUE QUEIRE ELIMINAR"));
+        if(Objects.nonNull(personaRecuperada)){
+            personaRecuperada.setEstado(Constants.STATUS_INACTIVE);
+            //Datos de la auditoria de eliminación
+            personaRecuperada.setUsua_dele(Constants.USU_CREA);
+            personaRecuperada.setDate_dele(new Timestamp(System.currentTimeMillis()));
+            response.setCode(Constants.OK_DNI_CODE);
+            response.setMessage(Constants.OK_DNI_MESS);
+            response.setData(Optional.of(personaRepository.save(personaRecuperada)));
+            return response;
+        }else {
+            response.setCode(Constants.ERROR_DNI_CODE);
+            response.setMessage(Constants.ERROR_DNI_MESS);
+            response.setData(Optional.of(personaRepository.save(personaRecuperada)));
+            return response;
+        }
     }
 
     private ReniecResponse executionReniec(String documento){
@@ -88,4 +123,59 @@ public class PersonaServiceImpl implements PersonaService {
             }
             return null;
       }
+
+    private PersonaEntity getEntityRetrofit(PersonaRequest personaRequest) throws IOException {
+        PersonaEntity personaEntity = new PersonaEntity();
+
+        //Preparación de cliente usando RETROFIT;
+        Call<ReniecResponse> callReniec = reniecServiceRetrofit.getPersonaReniec("Bearer "+tokenapi,
+                personaRequest.getNumdoc());
+        //Ejecutando consulta:
+        Response<ReniecResponse>  execute = callReniec.execute();
+        //validamos el estado de la ejecuíon y si tenemos datos en el body
+        if (execute.isSuccessful() && Objects.nonNull(execute.body())){
+            //extraemos los datos de la ejecución llevandolos a una clase en la cual los hemos recibido.
+            ReniecResponse response = execute.body();
+
+            personaEntity.setNombres(response.getNombres());
+            personaEntity.setApellidos(response.getApellidoPaterno()
+                    +" "+response.getApellidoMaterno());
+            personaEntity.setNumDoc(response.getNumeroDocumento());
+            personaEntity.setTipoDoc(response.getTipoDocumento());
+            personaEntity.setUsua_crea(Constants.USU_CREA);
+            personaEntity.setDate_crea(new Timestamp(System.currentTimeMillis()));
+            return personaEntity;
+        }
+        return null;
+    }
+
+    private PersonaEntity getEntityRestTemplate(PersonaRequest personaRequest){
+        PersonaEntity personaEntity = new PersonaEntity();
+        String url = "https://api.apis.net.pe/v2/reniec/dni?numero="+personaRequest.getNumdoc();
+        ResponseEntity<ReniecResponse> executeTemplate = restTemplate.exchange(
+                url,
+                HttpMethod.GET,
+                new HttpEntity<>(createHeaders()),
+                ReniecResponse.class
+        );
+        if(executeTemplate.getStatusCode().equals(HttpStatus.OK)){
+            ReniecResponse response = executeTemplate.getBody();
+            personaEntity.setNombres(response.getNombres());
+            personaEntity.setApellidos(response.getApellidoPaterno()
+                    +" "+response.getApellidoMaterno());
+            personaEntity.setNumDoc(response.getNumeroDocumento());
+            personaEntity.setTipoDoc(response.getTipoDocumento());
+            personaEntity.setEstado(Constants.STATUS_ACTIVE);
+            personaEntity.setUsua_crea(Constants.USU_CREA);
+            personaEntity.setDate_crea(new Timestamp(System.currentTimeMillis()));
+            return personaEntity;
+        }
+        return null;
+    }
+
+    private HttpHeaders createHeaders() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Authorization","Bearer "+tokenapi);
+        return headers;
+    }
 }
