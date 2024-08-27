@@ -2,6 +2,7 @@ package com.codigo.apis_externas.service;
 
 import com.codigo.apis_externas.aggregates.request.PersonaRequest;
 import com.codigo.apis_externas.aggregates.response.PersonaResponse;
+import com.codigo.apis_externas.aggregates.response.ReniecResponse;
 
 public interface PersonaService {
     PersonaResponse crearPersona(PersonaRequest request);
@@ -9,4 +10,5 @@ public interface PersonaService {
     PersonaResponse buscarPersonaDni(String dni);
     PersonaResponse actualizarPersona(Long id, PersonaRequest personaRequest);
     PersonaResponse eliminarPersona(String dni);
+    PersonaResponse buscarDatosReniec(String dni);
 }

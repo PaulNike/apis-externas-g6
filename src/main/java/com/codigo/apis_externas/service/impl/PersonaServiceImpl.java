@@ -6,10 +6,12 @@ import com.codigo.apis_externas.aggregates.response.PersonaResponse;
 import com.codigo.apis_externas.aggregates.response.ReniecResponse;
 import com.codigo.apis_externas.client.ReniecClient;
 import com.codigo.apis_externas.entity.PersonaEntity;
+import com.codigo.apis_externas.redis.RedisService;
 import com.codigo.apis_externas.repository.PersonaRepository;
 import com.codigo.apis_externas.retrofit.ReniecService;
 import com.codigo.apis_externas.retrofit.impl.ReniecClientImpl;
 import com.codigo.apis_externas.service.PersonaService;
+import com.codigo.apis_externas.util.Util;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
@@ -31,6 +33,7 @@ public class PersonaServiceImpl implements PersonaService {
     private final PersonaRepository personaRepository;
     private final ReniecClient reniecClient;
     private final RestTemplate restTemplate;
+    private final RedisService redisService;
     ReniecService reniecServiceRetrofit = ReniecClientImpl.getClient().create(ReniecService.class);
 
     @Value("${token.api}")
@@ -41,7 +44,7 @@ public class PersonaServiceImpl implements PersonaService {
     @Override
     public PersonaResponse crearPersona(PersonaRequest request) {
         try {
-            PersonaEntity persona = getEntityRestTemplate(request);
+            PersonaEntity persona = getEntity(request);
             if(Objects.nonNull(persona)){
                 return new PersonaResponse(Constants.OK_DNI_CODE,Constants.OK_DNI_MESS,
                         Optional.of(personaRepository.save(persona)));
@@ -100,10 +103,28 @@ public class PersonaServiceImpl implements PersonaService {
         }
     }
 
+    @Override
+    public PersonaResponse buscarDatosReniec(String dni) {
+        try {
+            ReniecResponse reniecResponse = executionReniec(dni);
+            return new PersonaResponse(Constants.OK_DNI_CODE,Constants.OK_DNI_MESS,Optional.of(reniecResponse));
+        }catch (Exception e){
+            return new PersonaResponse(Constants.ERROR_DNI_CODE,Constants.ERROR_DNI_MESS,Optional.empty());
+        }
+    }
+
     private ReniecResponse executionReniec(String documento){
-        String auth = "Bearer "+tokenapi;
-        ReniecResponse response = reniecClient.getPersonaReniec(documento,auth);
-        return response;
+        //API:CONSUMO:EXTERNA:72032008
+        String redisInfo = redisService.getDataDesdeRedis(Constants.REDIS_KEY_API_PERSON+documento);
+        if (Objects.nonNull(redisInfo)){
+            return Util.convertirDesdeString(redisInfo,ReniecResponse.class);
+        } else {
+            String auth = "Bearer "+tokenapi;
+            ReniecResponse response = reniecClient.getPersonaReniec(documento,auth);
+            String dataForRedis = Util.convertirAString(response);
+            redisService.guardarEnRedis(Constants.REDIS_KEY_API_PERSON+documento,dataForRedis,Constants.REDIS_EXP);
+            return response;
+        }
     }
 
     private PersonaEntity getEntity(PersonaRequest personaRequest){

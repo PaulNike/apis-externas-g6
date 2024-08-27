@@ -93,4 +93,13 @@ public class PersonaController {
             return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
         }
     }
+    @GetMapping("/buscarDatosReniec/{dni}")
+    public ResponseEntity<PersonaResponse> listarPersonas(@PathVariable("dni")String dni){
+        PersonaResponse response = personaService.buscarDatosReniec(dni);
+        if(response.getCode().equals(Constants.OK_DNI_CODE)){
+            return new ResponseEntity<>(response, HttpStatus.CREATED);
+        }else{
+            return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+        }
+    }
 }
