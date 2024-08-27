@@ -2,7 +2,7 @@ package com.codigo.apis_externas.service.impl;
 
 import com.codigo.apis_externas.aggregates.constants.Constants;
 import com.codigo.apis_externas.aggregates.request.PersonaRequest;
-import com.codigo.apis_externas.aggregates.response.BaseResponse;
+import com.codigo.apis_externas.aggregates.response.PersonaResponse;
 import com.codigo.apis_externas.aggregates.response.ReniecResponse;
 import com.codigo.apis_externas.client.ReniecClient;
 import com.codigo.apis_externas.entity.PersonaEntity;
@@ -39,15 +39,15 @@ public class PersonaServiceImpl implements PersonaService {
 
 
     @Override
-    public BaseResponse crearPersona(PersonaRequest request) {
+    public PersonaResponse crearPersona(PersonaRequest request) {
         try {
             PersonaEntity persona = getEntityRestTemplate(request);
             if(Objects.nonNull(persona)){
-                return new BaseResponse(Constants.OK_DNI_CODE,Constants.OK_DNI_MESS,
+                return new PersonaResponse(Constants.OK_DNI_CODE,Constants.OK_DNI_MESS,
                         Optional.of(personaRepository.save(persona)));
             }
         }catch (Exception e){
-            BaseResponse response = new BaseResponse(Constants.ERROR_DNI_CODE
+            PersonaResponse response = new PersonaResponse(Constants.ERROR_DNI_CODE
                     ,Constants.ERROR_DNI_MESS + e.getMessage(), Optional.empty());
             return response;
         }
@@ -56,31 +56,31 @@ public class PersonaServiceImpl implements PersonaService {
     }
 
     @Override
-    public BaseResponse listarPersonas() {
+    public PersonaResponse listarPersonas() {
         Optional<List<PersonaEntity>> personaEntityList = personaRepository.findByEstado(Constants.STATUS_ACTIVE);
         if(Objects.nonNull(personaEntityList)){
-            return new BaseResponse(Constants.OK_DNI_CODE,Constants.OK_DNI_MESS,
+            return new PersonaResponse(Constants.OK_DNI_CODE,Constants.OK_DNI_MESS,
                     personaEntityList);
         }else {
-            BaseResponse response = new BaseResponse(Constants.ERROR_CODE_LIST_EMPTY
+            PersonaResponse response = new PersonaResponse(Constants.ERROR_CODE_LIST_EMPTY
                     ,Constants.ERROR_MESS_LIST_EMPTY, Optional.empty());
             return response;
         }
     }
 
     @Override
-    public BaseResponse buscarPersonaDni(String dni) {
+    public PersonaResponse buscarPersonaDni(String dni) {
         return null;
     }
 
     @Override
-    public BaseResponse actualizarPersona(Long id, PersonaRequest personaRequest) {
+    public PersonaResponse actualizarPersona(Long id, PersonaRequest personaRequest) {
         return null;
     }
 
     @Override
-    public BaseResponse eliminarPersona(String dni) {
-        BaseResponse response = new BaseResponse();
+    public PersonaResponse eliminarPersona(String dni) {
+        PersonaResponse response = new PersonaResponse();
         PersonaEntity personaRecuperada = personaRepository.findByNumDoc(dni).orElseThrow(
                 ()->new RuntimeException("ERROR NO EXISTE LA PERSONA QUE QUEIRE ELIMINAR"));
         if(Objects.nonNull(personaRecuperada)){
