@@ -5,6 +5,7 @@ import com.codigo.apis_externas.aggregates.request.PersonaRequest;
 import com.codigo.apis_externas.aggregates.response.PersonaResponse;
 import com.codigo.apis_externas.aggregates.response.ReniecResponse;
 import com.codigo.apis_externas.client.ReniecClient;
+import com.codigo.apis_externas.controller.personalizado.ApiException;
 import com.codigo.apis_externas.entity.PersonaEntity;
 import com.codigo.apis_externas.redis.RedisService;
 import com.codigo.apis_externas.repository.PersonaRepository;
@@ -20,6 +21,7 @@ import org.springframework.web.client.RestTemplate;
 import retrofit2.Call;
 import retrofit2.Response;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.sql.Timestamp;
 import java.util.List;
@@ -111,6 +113,27 @@ public class PersonaServiceImpl implements PersonaService {
         }catch (Exception e){
             return new PersonaResponse(Constants.ERROR_DNI_CODE,Constants.ERROR_DNI_MESS,Optional.empty());
         }
+    }
+
+    @Override
+    public PersonaResponse buscarPrueba(int code) throws Exception {
+        String dato = null;
+
+        if(code == 1){
+            throw new ApiException("Error en buscarPrueba el codigo no puede ser 1");
+        }else{
+            throw new Exception();
+        }
+    }
+
+    @Override
+    public PersonaResponse buscarPrueba2(String dni) {
+        try {
+
+        }catch (Exception e){
+
+        }
+        return null;
     }
 
     private ReniecResponse executionReniec(String documento){

@@ -102,4 +102,9 @@ public class PersonaController {
             return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
         }
     }
+    @GetMapping("/exception/{code}")
+    public ResponseEntity<PersonaResponse> eliminar(@PathVariable("code") int code) throws Exception {
+        PersonaResponse response = personaService.buscarPrueba(code);
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
 }
